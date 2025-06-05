@@ -1,0 +1,86 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #222;
+}
+
+.machine {
+    position: relative;
+    width: 300px;
+    height: 400px;
+    background: #c00;
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    color: white;
+    border: 10px solid gold;
+    box-shadow: 0px 0px 20px rgba(255, 215, 0, 0.8);
+}
+
+.reels {
+    display: flex;
+    justify-content: space-around;
+    background: white;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.reel {
+    font-size: 40px;
+    color: black;
+    width: 60px;
+    text-align: center;
+}
+
+.lever {
+    position: absolute;
+    right: -40px;
+    top: 50px;
+    width: 20px;
+    height: 100px;
+    background: silver;
+    transform: rotate(30deg);
+    transform-origin: bottom;
+    transition: transform 0.2s ease;
+}
+
+.lever.active {
+    transform: rotate(90deg);
+}
+
+.coin-slot {
+    position: absolute;
+    left: 50%;
+    top: 10px;
+    width: 50px;
+    height: 20px;
+    background: gray;
+    border-radius: 5px;
+    transform: translateX(-50%);
+}
+
+.insert-coin {
+    display: block;
+    margin: 10px auto;
+    padding: 10px;
+    background: gold;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+
+.insert-coin:hover {
+    background-color: #f39c12;
+}
+
+#chances {
+    font-size: 16px;
+    color: #fff;
+    margin-top: 10px;
+}
+

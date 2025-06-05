@@ -1,0 +1,242 @@
+
+/* Reset et styles de base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #ff003c, #6800f0);
+  font-family: 'Arial', sans-serif;
+  padding: 20px;
+}
+
+.container {
+  text-align: center;
+}
+
+.title-container {
+  margin-bottom: 2rem;
+  position: relative;
+  display: inline-block;
+}
+
+.main-title {
+  color: #ffffff;
+  font-size: 3.5rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.3),
+               -1px -1px 0 rgba(255, 255, 255, 0.2);
+  margin-bottom: 0.5rem;
+  position: relative;
+  z-index: 1;
+  animation: titleFloat 3s ease-in-out infinite;
+}
+
+.title-decoration {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    transparent 100%
+  );
+  border-radius: 2px;
+  animation: decorationGlow 2s ease-in-out infinite;
+}
+
+@keyframes titleFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes decorationGlow {
+  0%, 100% {
+    opacity: 0.5;
+    width: 60%;
+  }
+  50% {
+    opacity: 1;
+    width: 80%;
+  }
+}
+
+/* Style du canvas */
+#roue {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3),
+              inset 0 0 50px rgba(0, 0, 0, 0.2);
+  margin: 20px auto;
+  display: block;
+}
+
+/* Style du bouton */
+#tourner {
+  background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+  border: none;
+  border-radius: 25px;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-top: 20px;
+  padding: 15px 40px;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+#tourner:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  background: linear-gradient(45deg, #ff8e8e, #ff6b6b);
+}
+
+#tourner:active {
+  transform: translateY(1px);
+}
+
+/* Modal de résultat */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-content {
+  padding: 2rem;
+  border-radius: 15px;
+  text-align: center;
+  position: relative;
+  animation: modalAppear 0.3s ease-out;
+  max-width: 90%;
+  width: 400px;
+}
+
+.modal-content.gagne {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+  box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+}
+
+.modal-content.perdu {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+}
+
+.modal-message {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.modal-description {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.9;
+}
+
+.modal-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid white;
+  color: white;
+  padding: 0.8rem 2rem;
+  border-radius: 25px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.modal-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+@keyframes modalAppear {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation de brillance pour la roue */
+@keyframes shine {
+  0% {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+  50% {
+      box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
+  }
+  100% {
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
+}
+
+#roue {
+  animation: shine 3s infinite;
+}
+
+/* Media queries pour la responsivité */
+@media (max-width: 768px) {
+  .main-title {
+    font-size: 2.5rem;
+  }
+  
+  #roue {
+    width: 90vw;
+    height: 90vw;
+    max-width: 400px;
+    max-height: 400px;
+  }
+  
+  #tourner {
+    font-size: 1rem;
+    padding: 12px 30px;
+  }
+  
+  .modal-content {
+    width: 90%;
+    padding: 1.5rem;
+  }
+  
+  .modal-message {
+    font-size: 1.5rem;
+  }
+  
+  .modal-description {
+    font-size: 1rem;
+  }
+}
