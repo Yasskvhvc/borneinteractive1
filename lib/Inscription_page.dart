@@ -195,37 +195,59 @@ class _InscriptionPageState extends State<InscriptionPage> {
     _isBadgeChecking = true;
 
     try {
-      final url = Uri.parse('${baseUrl}/api/badges');
-      final response = await http.get(url);
+      final badgeUrl = Uri.parse('${baseUrl}/api/badges');
+      final badgeResponse = await http.get(badgeUrl);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (badgeResponse.statusCode == 200) {
+        final badgeData = json.decode(badgeResponse.body);
 
-        // Supposons que data est de la forme { "badge": "123456" } ou null
-        if (data != null && data['badge'] == "b6 c2 d0 2b" && data['badge'].toString().isNotEmpty) {
+        // Supposons que badgeData = { "badge": "b6 c2 d0 2b" } ou null
+        final badgeUid = badgeData != null ? badgeData['badge']?.toString() : null;
+
+        if (badgeUid != null && badgeUid.isNotEmpty) {
           // Stopper la vérification périodique
           _badgeTimer?.cancel();
 
-          // Naviguer vers la page d’accueil avec un User construit à partir du badge
-          UserManager.setUser(User(
-            email: '',  // à adapter si possible, sinon vide
-            nom: 'BadgeUser',
-            prenom: data['badge'].toString(),
-            id: 0, // ou un ID par défaut
-          ));
+          // Requête pour récupérer les infos utilisateur via badge_uid
+          final userUrl = Uri.parse('${baseUrl}/api/utilisateurs?badge_uid=$badgeUid');
+          final userResponse = await http.get(userUrl);
 
-          await PlayCounterManager.resetPlayState();
+          if (userResponse.statusCode == 200) {
+            final userData = json.decode(userResponse.body);
 
-          if (mounted) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomePage()),
-            );
+            // Supposons que userData contient { "id_utilisateur": ..., "nom_utilisateur": ..., "prenom_utilisateur": ..., "email_utilisateur": ... }
+            if (userData != null && userData['id_utilisateur'] != null) {
+              UserManager.setUser(User(
+                id: userData['id_utilisateur'],
+                nom: userData['nom_utilisateur'] ?? '',
+                prenom: userData['prenom_utilisateur'] ?? '',
+                email: userData['email_utilisateur'] ?? '',
+              ));
+
+              await PlayCounterManager.resetPlayState();
+
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                );
+              }
+            } else {
+              // Si pas d'utilisateur trouvé, tu peux gérer une erreur ou remettre la vérification
+              _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+                checkForBadge();
+              });
+            }
+          } else {
+            // Échec requête utilisateur, tu peux gérer une erreur ou relancer la vérification
+            _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+              checkForBadge();
+            });
           }
         }
       }
     } catch (e) {
-      // Tu peux gérer l'erreur ou l'ignorer
+      // Gérer l'erreur ou ignorer
     } finally {
       _isBadgeChecking = false;
     }
