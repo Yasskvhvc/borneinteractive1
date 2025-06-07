@@ -6,6 +6,7 @@ import 'Home_page.dart';
 import 'user_manager.dart';
 import 'play_counter_manager.dart';
 import 'dart:async';
+import 'package:borneinteractive1/globals.dart';
 
 class InscriptionPage extends StatefulWidget {
   const InscriptionPage({super.key});
@@ -146,15 +147,17 @@ class _InscriptionPageState extends State<InscriptionPage> {
     }
 
     try {
-      final url = Uri.parse('http://192.168.112.120/api/inscription.php');
+      final url = Uri.parse('${baseUrl}/api/inscriptions');
       final response = await http.post(
         url,
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
           'nom_utilisateur': nom,
           'prenom_utilisateur': prenom,
           'email_utilisateur': email,
           'mdp_utilisateur': password,
-        },
+          'uid_badge_utilisateur': 'b6 c2 d0 2b'
+        }),
       );
 
       final data = json.decode(response.body);
@@ -192,7 +195,7 @@ class _InscriptionPageState extends State<InscriptionPage> {
     _isBadgeChecking = true;
 
     try {
-      final url = Uri.parse('http://192.168.37.83:3000/badges');
+      final url = Uri.parse('${baseUrl}/api/badges');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {

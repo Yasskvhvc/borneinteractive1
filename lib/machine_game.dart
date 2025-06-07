@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'user_manager.dart';
 import 'play_counter_manager.dart';
+import 'package:borneinteractive1/globals.dart';
 
 class MachineGame extends StatefulWidget {
   const MachineGame({super.key});
@@ -31,7 +32,7 @@ class _MachineGameState extends State<MachineGame> {
     final user = await UserManager.getUser();
     if (user == null || user.id == null) return;
 
-    final initResponse = await http.get(Uri.parse('http://192.168.112.120/api/wait_levier.php?id=${user.id}'));
+    final initResponse = await http.get(Uri.parse('${baseUrl}/api/wait_levier?id=${user.id}'));
     if (initResponse.statusCode == 200) {
       final initData = jsonDecode(initResponse.body);
       if (initData.containsKey('new_participation_id')) {
@@ -49,7 +50,7 @@ class _MachineGameState extends State<MachineGame> {
     while (mounted) {
       if (!leverAlreadyHandled) {
         final response = await http.get(Uri.parse(
-            'http://192.168.112.120/api/wait_levier.php?id=${user.id}&lastId=$lastParticipationId'));
+            '${baseUrl}/api/wait_levier?id=${user.id}&lastId=$lastParticipationId'));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           if (data['levier_actionne'] == true) {
@@ -121,7 +122,7 @@ class _MachineGameState extends State<MachineGame> {
 
     final int idTypeGain = isWin ? 1 : 3; // 1 = gain, 3 = perdu
     final int resultatParticipation = isWin ? 1 : 0; // 1 = gagné, 0 = perdu
-    final url = Uri.parse('http://192.168.112.120/api/participation.php');
+    final url = Uri.parse('${baseUrl}/api/participations');
 
     try {
       final response = await http.post(

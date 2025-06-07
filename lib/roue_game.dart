@@ -6,6 +6,7 @@ import 'reward_manager.dart';
 import 'Home_page.dart';
 import 'user_manager.dart';
 import 'play_counter_manager.dart';
+import 'package:borneinteractive1/globals.dart';
 
 class RoueGamePage extends StatefulWidget {
   const RoueGamePage({super.key});
@@ -109,7 +110,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
 
     final idTypeGain = getIdTypeGain(resultat);
     final resultatParticipation = (idTypeGain == 3) ? 0 : 1;
-    final url = Uri.parse('http://192.168.112.120/api/participation.php');
+    final url = Uri.parse('${baseUrl}/api/participations');
 
     print("📡 Envoi de la participation :");
     print("🔹 id_utilisateur = ${user.id}");
