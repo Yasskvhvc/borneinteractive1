@@ -127,12 +127,13 @@ class _MachineGameState extends State<MachineGame> {
     try {
       final response = await http.post(
         url,
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
           'id_utilisateur': user.id.toString(),
           'id_jeu': '2',
           'id_type_gain': idTypeGain.toString(),
           'resultat_participation': resultatParticipation.toString(),
-        },
+        }),
       );
       print('Réponse participation: ${response.body}');
     } catch (e) {

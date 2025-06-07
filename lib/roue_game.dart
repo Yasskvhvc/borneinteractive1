@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'reward_manager.dart';
 import 'Home_page.dart';
 import 'user_manager.dart';
+import 'dart:convert';
 import 'play_counter_manager.dart';
 import 'package:borneinteractive1/globals.dart';
 
@@ -121,12 +122,13 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     try {
       final response = await http.post(
         url,
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
           'id_utilisateur': user.id.toString(),
           'id_jeu': '1',
           'id_type_gain': idTypeGain.toString(),
           'resultat_participation': resultatParticipation.toString(),
-        },
+        }),
       );
 
       print('✅ Réponse serveur : ${response.statusCode}');
