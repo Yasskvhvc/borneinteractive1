@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'Home_page.dart';
 import 'user_manager.dart';
 import 'play_counter_manager.dart';
+import 'dart:async';
 
 class InscriptionPage extends StatefulWidget {
   const InscriptionPage({super.key});
@@ -20,6 +21,8 @@ class _InscriptionPageState extends State<InscriptionPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
   bool _isLoading = false;
+  Timer? _badgeTimer;
+  bool _isBadgeChecking = false;
   bool _hasAcceptedDataCollection = false;
 
   @override
@@ -28,6 +31,21 @@ class _InscriptionPageState extends State<InscriptionPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showDataConsentDialog();
     });
+
+    // Lancer la vérification du badge toutes les 3 secondes (exemple)
+    _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      checkForBadge();
+    });
+  }
+
+  @override
+  void dispose() {
+    _badgeTimer?.cancel();
+    _nomController.dispose();
+    _prenomController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   void _showDataConsentDialog() {
@@ -166,6 +184,47 @@ class _InscriptionPageState extends State<InscriptionPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> checkForBadge() async {
+    if (_isBadgeChecking) return; // éviter les appels parallèles
+    _isBadgeChecking = true;
+
+    try {
+      final url = Uri.parse('http://192.168.37.83:3000/badges');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // Supposons que data est de la forme { "badge": "123456" } ou null
+        if (data != null && data['badge'] == "b6 c2 d0 2b" && data['badge'].toString().isNotEmpty) {
+          // Stopper la vérification périodique
+          _badgeTimer?.cancel();
+
+          // Naviguer vers la page d’accueil avec un User construit à partir du badge
+          UserManager.setUser(User(
+            email: '',  // à adapter si possible, sinon vide
+            nom: 'BadgeUser',
+            prenom: data['badge'].toString(),
+            id: 0, // ou un ID par défaut
+          ));
+
+          await PlayCounterManager.resetPlayState();
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomePage()),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // Tu peux gérer l'erreur ou l'ignorer
+    } finally {
+      _isBadgeChecking = false;
     }
   }
 
