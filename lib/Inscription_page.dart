@@ -25,6 +25,7 @@ class _InscriptionPageState extends State<InscriptionPage> {
   Timer? _badgeTimer;
   bool _isBadgeChecking = false;
   bool _hasAcceptedDataCollection = false;
+  String? _uidBadgeDetecte;
 
   @override
   void initState() {
@@ -156,7 +157,7 @@ class _InscriptionPageState extends State<InscriptionPage> {
           'prenom_utilisateur': prenom,
           'email_utilisateur': email,
           'mdp_utilisateur': password,
-          'uid_badge_utilisateur': 'b6 c2 d0 2b'
+          'uid_badge_utilisateur': _uidBadgeDetecte
         }),
       );
 
@@ -191,7 +192,7 @@ class _InscriptionPageState extends State<InscriptionPage> {
   }
 
   Future<void> checkForBadge() async {
-    if (_isBadgeChecking) return; // éviter les appels parallèles
+    if (_isBadgeChecking) return;
     _isBadgeChecking = true;
 
     try {
@@ -200,22 +201,18 @@ class _InscriptionPageState extends State<InscriptionPage> {
 
       if (badgeResponse.statusCode == 200) {
         final badgeData = json.decode(badgeResponse.body);
-
-        // Supposons que badgeData = { "badge": "b6 c2 d0 2b" } ou null
         final badgeUid = badgeData != null ? badgeData['badge']?.toString() : null;
 
         if (badgeUid != null && badgeUid.isNotEmpty) {
-          // Stopper la vérification périodique
-          _badgeTimer?.cancel();
+          _badgeTimer?.cancel(); // on stoppe les tentatives
+          _uidBadgeDetecte = badgeUid; // stocker l'UID pour le formulaire
 
-          // Requête pour récupérer les infos utilisateur via badge_uid
           final userUrl = Uri.parse('${baseUrl}/api/utilisateurs?badge_uid=$badgeUid');
           final userResponse = await http.get(userUrl);
 
           if (userResponse.statusCode == 200) {
             final userData = json.decode(userResponse.body);
 
-            // Supposons que userData contient { "id_utilisateur": ..., "nom_utilisateur": ..., "prenom_utilisateur": ..., "email_utilisateur": ... }
             if (userData != null && userData['id_utilisateur'] != null) {
               UserManager.setUser(User(
                 id: userData['id_utilisateur'],
@@ -232,22 +229,24 @@ class _InscriptionPageState extends State<InscriptionPage> {
                   MaterialPageRoute(builder: (context) => const HomePage()),
                 );
               }
-            } else {
-              // Si pas d'utilisateur trouvé, tu peux gérer une erreur ou remettre la vérification
-              _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-                checkForBadge();
-              });
+              return;
             }
-          } else {
-            // Échec requête utilisateur, tu peux gérer une erreur ou relancer la vérification
-            _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-              checkForBadge();
-            });
           }
+
+          // Si utilisateur non trouvé (404 ou erreur API), on garde l’UID pour inscription
+          // Laisser le champ à l’utilisateur visible/inscriptible
+          setState(() {
+            _uidBadgeDetecte = badgeUid;
+          });
+
+          // Recommencer la vérification dans 3 secondes pour un autre badge
+          _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+            checkForBadge();
+          });
         }
       }
-    } catch (e) {
-      // Gérer l'erreur ou ignorer
+    } catch (_) {
+      // Ignore les erreurs réseaux pour éviter crash
     } finally {
       _isBadgeChecking = false;
     }
@@ -340,6 +339,17 @@ class _InscriptionPageState extends State<InscriptionPage> {
                         icon: Icons.lock,
                         obscureText: true,
                       ),
+                      if (_uidBadgeDetecte != null) ...[
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          enabled: false,
+                          initialValue: _uidBadgeDetecte,
+                          decoration: const InputDecoration(
+                            labelText: 'Badge détecté',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
