@@ -18,28 +18,11 @@ class _MachineGameState extends State<MachineGame> {
   List<String> currentSymbols = ["🍒", "🍋", "🔔"];
   String resultText = "Tirez le levier pour jouer !";
   bool isSpinning = false;
-  bool leverAlreadyHandled = false; // AJOUT
-
-  int lastParticipationId = 0; // AJOUT
+  bool leverAlreadyHandled = false;
 
   @override
   void initState() {
     super.initState();
-    initLastParticipationIdAndWaitForLever();  // MODIF : nouvelle fonction d'init
-  }
-
-  Future<void> initLastParticipationIdAndWaitForLever() async {
-    final user = await UserManager.getUser();
-    if (user == null || user.id == null) return;
-
-    final initResponse = await http.get(Uri.parse('${baseUrl}/api/wait_levier?id=${user.id}'));
-    if (initResponse.statusCode == 200) {
-      final initData = jsonDecode(initResponse.body);
-      if (initData.containsKey('new_participation_id')) {
-        lastParticipationId = initData['new_participation_id'];
-      }
-    }
-
     waitForLever();
   }
 
@@ -50,12 +33,11 @@ class _MachineGameState extends State<MachineGame> {
     while (mounted) {
       if (!leverAlreadyHandled) {
         final response = await http.get(Uri.parse(
-            '${baseUrl}/api/wait_levier?id=${user.id}&lastId=$lastParticipationId'));
+            '${baseUrl}/api/leviers'));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          if (data['levier_actionne'] == true) {
+          if (data['levier'] == true) {
             leverAlreadyHandled = true;
-            lastParticipationId = data['new_participation_id'] ?? lastParticipationId;
             startGame();
           }
         }
