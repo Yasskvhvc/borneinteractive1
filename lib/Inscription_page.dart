@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'Home_page.dart';
 import 'user_manager.dart';
 import 'play_counter_manager.dart';
+import 'dart:async';
+import 'package:borneinteractive1/globals.dart';
 
 class InscriptionPage extends StatefulWidget {
   const InscriptionPage({super.key});
@@ -20,7 +22,10 @@ class _InscriptionPageState extends State<InscriptionPage> {
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
   bool _isLoading = false;
+  Timer? _badgeTimer;
+  bool _isBadgeChecking = false;
   bool _hasAcceptedDataCollection = false;
+  String? _uidBadgeDetecte;
 
   @override
   void initState() {
@@ -28,6 +33,21 @@ class _InscriptionPageState extends State<InscriptionPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showDataConsentDialog();
     });
+
+    // Lancer la vérification du badge toutes les 3 secondes (exemple)
+    _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      checkForBadge();
+    });
+  }
+
+  @override
+  void dispose() {
+    _badgeTimer?.cancel();
+    _nomController.dispose();
+    _prenomController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   void _showDataConsentDialog() {
@@ -133,15 +153,17 @@ class _InscriptionPageState extends State<InscriptionPage> {
     }
 
     try {
-      final url = Uri.parse('http://192.168.112.120/api/inscription.php');
+      final url = Uri.parse('${baseUrl}/api/inscriptions');
       final response = await http.post(
         url,
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
           'nom_utilisateur': nom,
           'prenom_utilisateur': prenom,
           'email_utilisateur': email,
           'mdp_utilisateur': password,
-        },
+          'uid_badge_utilisateur': _uidBadgeDetecte
+        }),
       );
 
       final data = json.decode(response.body);
@@ -171,6 +193,67 @@ class _InscriptionPageState extends State<InscriptionPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> checkForBadge() async {
+    if (_isBadgeChecking) return;
+    _isBadgeChecking = true;
+
+    try {
+      final badgeUrl = Uri.parse('${baseUrl}/api/badges');
+      final badgeResponse = await http.get(badgeUrl);
+
+      if (badgeResponse.statusCode == 200) {
+        final badgeData = json.decode(badgeResponse.body);
+        final badgeUid = badgeData != null ? badgeData['badge']?.toString() : null;
+
+        if (badgeUid != null && badgeUid.isNotEmpty) {
+          _badgeTimer?.cancel(); // on stoppe les tentatives
+          _uidBadgeDetecte = badgeUid; // stocker l'UID pour le formulaire
+
+          final userUrl = Uri.parse('${baseUrl}/api/utilisateurs?badge_uid=$badgeUid');
+          final userResponse = await http.get(userUrl);
+
+          if (userResponse.statusCode == 200) {
+            final userData = json.decode(userResponse.body);
+
+            if (userData != null && userData['id_utilisateur'] != null) {
+              UserManager.setUser(User(
+                id: userData['id_utilisateur'],
+                nom: userData['nom_utilisateur'] ?? '',
+                prenom: userData['prenom_utilisateur'] ?? '',
+                email: userData['email_utilisateur'] ?? '',
+              ));
+
+              await PlayCounterManager.resetPlayState();
+
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomePage()),
+                );
+              }
+              return;
+            }
+          }
+
+          // Si utilisateur non trouvé (404 ou erreur API), on garde l’UID pour inscription
+          // Laisser le champ à l’utilisateur visible/inscriptible
+          setState(() {
+            _uidBadgeDetecte = badgeUid;
+          });
+
+          // Recommencer la vérification dans 3 secondes pour un autre badge
+          _badgeTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+            checkForBadge();
+          });
+        }
+      }
+    } catch (_) {
+      // Ignore les erreurs réseaux pour éviter crash
+    } finally {
+      _isBadgeChecking = false;
     }
   }
 
@@ -261,6 +344,17 @@ class _InscriptionPageState extends State<InscriptionPage> {
                         icon: Icons.lock,
                         obscureText: true,
                       ),
+                      if (_uidBadgeDetecte != null) ...[
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          enabled: false,
+                          initialValue: _uidBadgeDetecte,
+                          decoration: const InputDecoration(
+                            labelText: 'Badge détecté',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

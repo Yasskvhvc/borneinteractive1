@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 import 'reward_manager.dart';
 import 'Home_page.dart';
 import 'user_manager.dart';
+import 'dart:convert';
 import 'play_counter_manager.dart';
+import 'package:borneinteractive1/globals.dart';
 
 class RoueGamePage extends StatefulWidget {
   const RoueGamePage({super.key});
@@ -15,6 +17,9 @@ class RoueGamePage extends StatefulWidget {
 }
 
 class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderStateMixin {
+  bool _jetonRequisVisible = false;
+  bool _jetonPresent = false;
+
   final List<String> options = [
     'Perdu',
     '20 % de réduction',
@@ -60,10 +65,53 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
         _afficherResultat();
       }
     });
+
+    _verifierJeton(); // ✅ Vérifie la présence du jeton
+  }
+
+  Future<void> _verifierJeton() async {
+    if (_jetonPresent) {
+      print("Jeton déjà présent, pas besoin de vérifier.");
+      return;
+    }
+
+    try {
+      final response = await http.get(Uri.parse('${baseUrl}/api/jetons'));
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        final jetonPresent = jsonData['jeton'] == true;
+        if (!jetonPresent) {
+          setState(() {
+            _jetonRequisVisible = true;
+          });
+        } else {
+          setState(() {
+            _jetonPresent = true;
+            _jetonRequisVisible = false;
+          });
+        }
+      } else {
+        print('❌ Erreur lors de la vérification du jeton');
+        setState(() {
+          _jetonRequisVisible = true;
+        });
+      }
+    } catch (e) {
+      print('❌ Exception lors de la vérification du jeton : $e');
+      setState(() {
+        _jetonRequisVisible = true;
+      });
+    }
   }
 
   Future<void> _tournerRoue() async {
     if (_enRotation) return;
+
+    setState(() {
+      _jetonRequisVisible = false;
+      _jetonPresent = false;
+    });
 
     final playCount = await PlayCounterManager.getPlayCount();
     if (playCount >= 2) {
@@ -109,7 +157,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
 
     final idTypeGain = getIdTypeGain(resultat);
     final resultatParticipation = (idTypeGain == 3) ? 0 : 1;
-    final url = Uri.parse('http://192.168.112.120/api/participation.php');
+    final url = Uri.parse('${baseUrl}/api/participations');
 
     print("📡 Envoi de la participation :");
     print("🔹 id_utilisateur = ${user.id}");
@@ -120,12 +168,13 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     try {
       final response = await http.post(
         url,
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
           'id_utilisateur': user.id.toString(),
           'id_jeu': '1',
           'id_type_gain': idTypeGain.toString(),
           'resultat_participation': resultatParticipation.toString(),
-        },
+        }),
       );
 
       print('✅ Réponse serveur : ${response.statusCode}');
@@ -255,6 +304,61 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     );
   }
 
+  Widget _buildJetonModal() {
+    if (!_jetonRequisVisible) return const SizedBox.shrink();
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Container(
+            color: Colors.black54,
+          ),
+        ),
+        Center(
+          child: Container(
+            width: 300,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.vpn_key, size: 48, color: Colors.pink),
+                const SizedBox(height: 16),
+                const Text(
+                  'Jeton requis',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Veuillez insérer un jeton pour jouer à la roue.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    _verifierJeton();
+                  },
+                  child: const Text('Réessayer'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -336,7 +440,8 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
               ),
             ),
           ),
-          if (_modalVisible) _buildModal(),
+          _buildModal(),
+          _buildJetonModal()
         ],
       ),
     );

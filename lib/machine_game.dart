@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'user_manager.dart';
 import 'play_counter_manager.dart';
+import 'package:borneinteractive1/globals.dart';
 
 class MachineGame extends StatefulWidget {
   const MachineGame({super.key});
@@ -17,28 +18,11 @@ class _MachineGameState extends State<MachineGame> {
   List<String> currentSymbols = ["🍒", "🍋", "🔔"];
   String resultText = "Tirez le levier pour jouer !";
   bool isSpinning = false;
-  bool leverAlreadyHandled = false; // AJOUT
-
-  int lastParticipationId = 0; // AJOUT
+  bool leverAlreadyHandled = false;
 
   @override
   void initState() {
     super.initState();
-    initLastParticipationIdAndWaitForLever();  // MODIF : nouvelle fonction d'init
-  }
-
-  Future<void> initLastParticipationIdAndWaitForLever() async {
-    final user = await UserManager.getUser();
-    if (user == null || user.id == null) return;
-
-    final initResponse = await http.get(Uri.parse('http://192.168.112.120/api/wait_levier.php?id=${user.id}'));
-    if (initResponse.statusCode == 200) {
-      final initData = jsonDecode(initResponse.body);
-      if (initData.containsKey('new_participation_id')) {
-        lastParticipationId = initData['new_participation_id'];
-      }
-    }
-
     waitForLever();
   }
 
@@ -49,12 +33,11 @@ class _MachineGameState extends State<MachineGame> {
     while (mounted) {
       if (!leverAlreadyHandled) {
         final response = await http.get(Uri.parse(
-            'http://192.168.112.120/api/wait_levier.php?id=${user.id}&lastId=$lastParticipationId'));
+            '${baseUrl}/api/leviers'));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
-          if (data['levier_actionne'] == true) {
+          if (data['levier'] == true) {
             leverAlreadyHandled = true;
-            lastParticipationId = data['new_participation_id'] ?? lastParticipationId;
             startGame();
           }
         }
@@ -121,17 +104,18 @@ class _MachineGameState extends State<MachineGame> {
 
     final int idTypeGain = isWin ? 1 : 3; // 1 = gain, 3 = perdu
     final int resultatParticipation = isWin ? 1 : 0; // 1 = gagné, 0 = perdu
-    final url = Uri.parse('http://192.168.112.120/api/participation.php');
+    final url = Uri.parse('${baseUrl}/api/participations');
 
     try {
       final response = await http.post(
         url,
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
           'id_utilisateur': user.id.toString(),
           'id_jeu': '2',
           'id_type_gain': idTypeGain.toString(),
           'resultat_participation': resultatParticipation.toString(),
-        },
+        }),
       );
       print('Réponse participation: ${response.body}');
     } catch (e) {
