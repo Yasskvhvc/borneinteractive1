@@ -1,4 +1,4 @@
-import 'dart:convert'; // Ajout pour jsonDecode
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -32,8 +32,7 @@ class _MachineGameState extends State<MachineGame> {
 
     while (mounted) {
       if (!leverAlreadyHandled) {
-        final response = await http.get(Uri.parse(
-            '${baseUrl}/api/leviers'));
+        final response = await http.get(Uri.parse('${baseUrl}/api/leviers'));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           if (data['levier'] == true) {
@@ -57,9 +56,11 @@ class _MachineGameState extends State<MachineGame> {
 
     final playCount = await PlayCounterManager.getPlayCount();
     if (playCount >= 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous ne pouvez plus participez. Revenez demain !')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vous ne pouvez plus participez. Revenez demain !')),
+        );
+      }
       return;
     }
 
@@ -75,11 +76,12 @@ class _MachineGameState extends State<MachineGame> {
       ];
 
       if (Random().nextDouble() < 0.5) {
-        while (randomIndexes[0] == randomIndexes[1] &&
-            randomIndexes[1] == randomIndexes[2]) {
+        while (randomIndexes[0] == randomIndexes[1] && randomIndexes[1] == randomIndexes[2]) {
           randomIndexes[2] = Random().nextInt(symbols.length);
         }
       }
+
+      if (!mounted) return;
 
       setState(() {
         currentSymbols = [
@@ -95,6 +97,27 @@ class _MachineGameState extends State<MachineGame> {
     });
   }
 
+  Future<void> sendResultToArduino(bool isWin) async {
+    final ipArduino = '192.168.1.50'; // Mets ici l'IP de ton Arduino
+    final url = Uri.parse('http://$ipArduino/result');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'result': isWin ? 'gain' : 'perte'}),
+      );
+
+      if (response.statusCode == 200) {
+        print('Résultat envoyé à l\'Arduino: ${isWin ? 'gain' : 'perte'}');
+      } else {
+        print('Erreur Arduino: code ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Erreur en envoyant le résultat à l\'Arduino: $e');
+    }
+  }
+
   Future<void> _enregistrerPartie(bool isWin) async {
     final user = await UserManager.getUser();
     if (user == null || user.id == null) {
@@ -102,8 +125,8 @@ class _MachineGameState extends State<MachineGame> {
       return;
     }
 
-    final int idTypeGain = isWin ? 1 : 3; // 1 = gain, 3 = perdu
-    final int resultatParticipation = isWin ? 1 : 0; // 1 = gagné, 0 = perdu
+    final int idTypeGain = isWin ? 1 : 3;
+    final int resultatParticipation = isWin ? 1 : 0;
     final url = Uri.parse('${baseUrl}/api/participations');
 
     try {
@@ -127,28 +150,35 @@ class _MachineGameState extends State<MachineGame> {
     bool isWin = currentSymbols.every((val) => val == currentSymbols[0]);
     final playCount = await PlayCounterManager.getPlayCount();
 
+    await sendResultToArduino(isWin);
     await _enregistrerPartie(isWin);
 
     if (isWin) {
       if (playCount == 0) {
         await PlayCounterManager.setPlayCountToMax();
-        setState(() {
-          resultText = "🎉 Vous avez gagné, revenez demain ! 🎉";
-        });
+        if (mounted) {
+          setState(() {
+            resultText = "🎉 Vous avez gagné, revenez demain ! 🎉";
+          });
+        }
       } else {
         await PlayCounterManager.incrementPlayCount();
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const WinScreen(),
-          ),
-        );
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const WinScreen(),
+            ),
+          );
+        }
       }
     } else {
       await PlayCounterManager.incrementPlayCount();
-      setState(() {
-        resultText = "Vous avez perdu, retentez votre chance !";
-      });
+      if (mounted) {
+        setState(() {
+          resultText = "Vous avez perdu, retentez votre chance !";
+        });
+      }
     }
   }
 
