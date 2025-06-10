@@ -84,8 +84,13 @@ class _InscriptionPageState extends State<InscriptionPage> {
   }
 
   bool _isPasswordValid(String password) {
-    return password.length >= 12;
+    final hasUppercase = password.contains(RegExp(r'[A-Z]'));
+    final hasSpecialChar = password.contains(RegExp(r'[!@#\$&*~]'));
+    final hasMinLength = password.length >= 12;
+
+    return hasMinLength && hasUppercase && hasSpecialChar;
   }
+
 
   Future<void> _register() async {
     setState(() {

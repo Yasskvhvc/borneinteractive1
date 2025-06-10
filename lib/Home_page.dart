@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -42,8 +44,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached || state == AppLifecycleState.inactive) {
-      // L'application est en train d'être fermée ou inactive
-      PlayCounterManager.resetPlayState(); // Réinitialisation du compteur à la fermeture
+      PlayCounterManager.resetPlayState();
     }
   }
 
@@ -52,10 +53,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final String key = event.logicalKey.keyLabel;
       if (key == 'Enter') {
         String scannedCode = _scanBuffer.toString().trim();
-
-        // Nettoyage simple : garder seulement les lettres A-Z et chiffres 0-9, en majuscules
         scannedCode = scannedCode.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
-
         _scanBuffer.clear();
 
         if (scannedCode == 'ROUE') {
@@ -73,7 +71,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -206,12 +203,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                                       ),
                                                       const SizedBox(height: 16),
                                                       ElevatedButton.icon(
-                                                        onPressed: () {
-                                                          // Impression du ticket
+                                                        onPressed: () async {
+                                                          await printLabel();
                                                         },
                                                         icon: const Icon(Icons.print),
                                                         label: const Text('Imprimer le ticket'),
                                                       ),
+
                                                     ],
                                                   );
                                                 },
@@ -255,10 +253,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                                               crossAxisAlignment: CrossAxisAlignment.start,
                                                               children: [
                                                                 if (user.nom != null && user.nom!.isNotEmpty)
-                                                                  Text('Nom : ${user.nom}'),
+                                                                  Text('Nom : \${user.nom}'),
                                                                 if (user.prenom != null && user.prenom!.isNotEmpty)
-                                                                  Text('Prénom : ${user.prenom}'),
-                                                                Text('Email : ${user.email}'),
+                                                                  Text('Prénom : \${user.prenom}'),
+                                                                Text('Email : \${user.email}'),
                                                               ],
                                                             ),
                                                             actions: [
@@ -279,7 +277,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                                 title: const Text('Déconnexion'),
                                                 onTap: () async {
                                                   Navigator.pop(context);
-                                                  await PlayCounterManager.resetPlayState(); // ✅ Reset compteur à la déconnexion
+                                                  await PlayCounterManager.resetPlayState();
                                                   Navigator.pushReplacement(
                                                     context,
                                                     MaterialPageRoute(builder: (context) => AccueilConcours()),
@@ -424,6 +422,29 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 }
+
+Future<void> printLabel() async {
+  const printerIp = '192.168.112.153';
+  const port = 9100;
+
+  final message = "Bravo ! Vous pouvez récupérer votre récompense !";
+
+  final rawData = utf8.encode('$message\n\n\n\n\n');
+
+  try {
+    final socket = await Socket.connect(printerIp, port, timeout: Duration(seconds: 5));
+    print("✅ Connecté à l'imprimante");
+
+    socket.add(rawData);
+    await socket.flush();
+    await socket.close();
+
+    print("✅ Étiquette imprimée !");
+  } catch (e) {
+    print("❌ Erreur d’impression : $e");
+  }
+}
+
 
 class ConfettiBackgroundPainter extends CustomPainter {
   final Random _random = Random();
