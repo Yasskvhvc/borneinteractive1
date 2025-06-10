@@ -51,11 +51,13 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 5000),
     );
+
     _controller.addListener(() {
       setState(() {
         _angle = _animation.value;
       });
     });
+
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         setState(() {
@@ -65,7 +67,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
       }
     });
 
-    _verifierJeton(); // ✅ Vérifie la présence du jeton
+    _verifierJeton();
   }
 
   Future<void> _verifierJeton() async {
@@ -80,26 +82,22 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         final jetonPresent = jsonData['jeton'] == true;
-        if (!jetonPresent) {
-          setState(() {
-            _jetonRequisVisible = true;
-          });
-        } else {
-          setState(() {
-            _jetonPresent = true;
-            _jetonRequisVisible = false;
-          });
-        }
+        setState(() {
+          _jetonPresent = jetonPresent;
+          _jetonRequisVisible = !jetonPresent;
+        });
       } else {
         print('❌ Erreur lors de la vérification du jeton');
         setState(() {
           _jetonRequisVisible = true;
+          _jetonPresent = false;
         });
       }
     } catch (e) {
       print('❌ Exception lors de la vérification du jeton : $e');
       setState(() {
         _jetonRequisVisible = true;
+        _jetonPresent = false;
       });
     }
   }
@@ -107,16 +105,13 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
   Future<void> _tournerRoue() async {
     if (_enRotation) return;
 
-    setState(() {
-      _jetonRequisVisible = false;
-      _jetonPresent = false;
-    });
-
     final playCount = await PlayCounterManager.getPlayCount();
     if (playCount >= 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous avez assez joué pour aujourd\'hui. Revenez demain !')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vous avez assez joué pour aujourd\'hui. Revenez demain !')),
+        );
+      }
       return;
     }
 
@@ -158,12 +153,6 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     final resultatParticipation = (idTypeGain == 3) ? 0 : 1;
     final url = Uri.parse('${baseUrl}/api/participations');
 
-    print("📡 Envoi de la participation :");
-    print("🔹 id_utilisateur = ${user.id}");
-    print("🔹 id_jeu = 1");
-    print("🔹 id_type_gain = $idTypeGain");
-    print("🔹 resultat_participation = $resultatParticipation");
-
     try {
       final response = await http.post(
         url,
@@ -183,15 +172,15 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     }
   }
 
-
   Future<void> _afficherResultat() async {
     final angleParOption = 2 * pi / options.length;
     double angleNormalise = (_angle % (2 * pi) + 2 * pi) % (2 * pi);
-    int index = (angleNormalise / angleParOption).floor();
-    index = (index + 1) % options.length;
+
+    // Correction: on inverse la logique pour trouver l'index correct (la roue tourne dans le sens horaire)
+    int index = (options.length - (angleNormalise / angleParOption).floor() - 1) % options.length;
 
     final resultat = options[index];
-    print("Résultat de la roue : '$resultat'");  // <-- Ajout debug
+    print("Résultat de la roue : '$resultat'");
 
     setState(() {
       _resultat = resultat;
@@ -206,7 +195,6 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     if (resultat.toLowerCase().trim() != 'perdu') {
       if (playCount == 0) {
         await PlayCounterManager.setPlayCountToMax();
-        // Affiche un snackbar avec le message "Vous avez gagné, revenez demain !"
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('🎉 Vous avez gagné, revenez demain ! 🎉')),
@@ -223,7 +211,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const HomePage()),
-            (route) => false,
+        (route) => false,
       );
     }
   }
@@ -236,7 +224,8 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
 
   Widget _buildModal() {
     if (!_modalVisible) return const SizedBox.shrink();
-    final estPerdu = (_resultat?.toLowerCase().trim() == 'perdu');  // <-- correction ici
+
+    final estPerdu = (_resultat?.toLowerCase().trim() == 'perdu');
 
     return Stack(
       children: [
@@ -254,8 +243,8 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
                 colors: estPerdu
-                    ? [Color(0xFFdc3545), Color(0xFFc82333)]  // Rouge pour perdu
-                    : [Color(0xFF28a745), Color(0xFF20c997)], // Vert pour gagné
+                    ? [Color(0xFFdc3545), Color(0xFFc82333)]
+                    : [Color(0xFF28a745), Color(0xFF20c997)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -321,7 +310,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
+              boxShadow: const [
                 BoxShadow(
                   color: Colors.black26,
                   blurRadius: 20,
@@ -407,7 +396,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
                         ),
                       ),
                     ),
-                    Positioned(
+                    const Positioned(
                       top: 0,
                       child: Icon(Icons.arrow_drop_down_circle, size: 48, color: Colors.white),
                     ),
@@ -415,9 +404,9 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: _jetonPresent ? _tournerRoue : null,
+                  onPressed: (_jetonPresent && !_enRotation) ? _tournerRoue : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _jetonPresent ? Colors.pink : Colors.grey,
+                    backgroundColor: (_jetonPresent && !_enRotation) ? Colors.pink : Colors.grey,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                     padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
@@ -447,51 +436,38 @@ class RouePainter extends CustomPainter {
     final rayon = size.width / 2;
 
     final paint = Paint()..style = PaintingStyle.fill;
-    final textPainter = TextPainter(
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    );
+    final textPainter = TextPainter(textAlign: TextAlign.center, textDirection: TextDirection.ltr);
 
-    final angleParSection = 2 * pi / options.length;
+    final angleParOption = 2 * pi / options.length;
 
     for (int i = 0; i < options.length; i++) {
-      final startAngle = i * angleParSection;
+      final debutAngle = i * angleParOption;
       paint.color = couleurs[i];
 
-      // Dessiner la section
-      canvas.drawArc(
-        Rect.fromCircle(center: centre, radius: rayon),
-        startAngle,
-        angleParSection,
-        true,
-        paint,
-      );
+      canvas.drawArc(Rect.fromCircle(center: centre, radius: rayon), debutAngle, angleParOption, true, paint);
 
-      // Dessiner le texte
-      final textAngle = startAngle + angleParSection / 2;
+      final textAngle = debutAngle + angleParOption / 2;
+
       canvas.save();
-      canvas.translate(
-        centre.dx + rayon * 0.65 * cos(textAngle),
-        centre.dy + rayon * 0.65 * sin(textAngle),
-      );
-      canvas.rotate(textAngle + pi / 2);
+      canvas.translate(centre.dx, centre.dy);
+      canvas.rotate(textAngle);
 
-      textPainter.text = TextSpan(
-        text: options[i],
-        style: const TextStyle(
-          fontSize: 16,
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
+      final texte = options[i];
+      final style = TextStyle(
+        fontSize: 16,
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
       );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+
+      textPainter.text = TextSpan(text: texte, style: style);
+      textPainter.layout(maxWidth: rayon * 0.8);
+      canvas.translate(rayon * 0.6, -textPainter.height / 2);
+      textPainter.paint(canvas, Offset(0, 0));
 
       canvas.restore();
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
-
