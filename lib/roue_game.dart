@@ -1,4 +1,3 @@
-// Fichier: roue_game_page.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -192,17 +191,19 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     index = (index + 1) % options.length;
 
     final resultat = options[index];
+    print("Résultat de la roue : '$resultat'");  // <-- Ajout debug
+
     setState(() {
       _resultat = resultat;
       _modalVisible = true;
     });
 
-    RewardManager.setReward(resultat != 'Perdu');
+    RewardManager.setReward(resultat.toLowerCase().trim() != 'perdu');
     await _enregistrerPartie(resultat);
 
     final playCount = await PlayCounterManager.getPlayCount();
 
-    if (resultat != 'Perdu') {
+    if (resultat.toLowerCase().trim() != 'perdu') {
       if (playCount == 0) {
         await PlayCounterManager.setPlayCountToMax();
         // Affiche un snackbar avec le message "Vous avez gagné, revenez demain !"
@@ -217,7 +218,6 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
     } else {
       await PlayCounterManager.incrementPlayCount();
     }
-
 
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
@@ -236,7 +236,7 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
 
   Widget _buildModal() {
     if (!_modalVisible) return const SizedBox.shrink();
-    final estPerdu = _resultat == 'Perdu';
+    final estPerdu = (_resultat?.toLowerCase().trim() == 'perdu');  // <-- correction ici
 
     return Stack(
       children: [
@@ -254,8 +254,8 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
               borderRadius: BorderRadius.circular(16),
               gradient: LinearGradient(
                 colors: estPerdu
-                    ? [Color(0xFFdc3545), Color(0xFFc82333)]
-                    : [Color(0xFF28a745), Color(0xFF20c997)],
+                    ? [Color(0xFFdc3545), Color(0xFFc82333)]  // Rouge pour perdu
+                    : [Color(0xFF28a745), Color(0xFF20c997)], // Vert pour gagné
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -376,72 +376,59 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
         ),
       ),
       extendBodyBehindAppBar: true,
-      backgroundColor: null,
       body: Stack(
         children: [
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFFFF003C), Color(0xFF6800F0)],
+                colors: [
+                  Color(0xFF0D324D),
+                  Color(0xFF7F5A83),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
             ),
           ),
           Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 40),
-                  Text(
-                    'Roue des étoiles',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.3),
-                          offset: Offset(3, 3),
-                          blurRadius: 6,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: 400,
-                    height: 400,
-                    child: CustomPaint(
-                      painter: RouePainter(
-                        options: options,
-                        couleurs: couleurs,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 300,
+                      height: 300,
+                      child: Transform.rotate(
                         angle: _angle,
+                        child: CustomPaint(
+                          painter: RouePainter(options: options, couleurs: couleurs),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _enRotation ? null : _tournerRoue,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.pinkAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                      textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      elevation: 8,
-                      shadowColor: Colors.pinkAccent.withOpacity(0.3),
+                    Positioned(
+                      top: 0,
+                      child: Icon(Icons.arrow_drop_down_circle, size: 48, color: Colors.white),
                     ),
-                    child: const Text('Tourner la roue'),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: _jetonPresent ? _tournerRoue : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _jetonPresent ? Colors.pink : Colors.grey,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
                   ),
-                  const SizedBox(height: 40),
-                ],
-              ),
+                  child: const Text('Jouer', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                ),
+              ],
             ),
           ),
           _buildModal(),
-          _buildJetonModal()
+          _buildJetonModal(),
         ],
       ),
     );
@@ -451,74 +438,60 @@ class _RoueGamePageState extends State<RoueGamePage> with SingleTickerProviderSt
 class RouePainter extends CustomPainter {
   final List<String> options;
   final List<Color> couleurs;
-  final double angle;
 
-  RouePainter({
-    required this.options,
-    required this.couleurs,
-    required this.angle,
-  });
+  RouePainter({required this.options, required this.couleurs});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final rayon = min(size.width, size.height) / 2 - 10;
-    final angleParOption = 2 * pi / options.length;
-    final textStyle = TextStyle(
-      color: Colors.white,
-      fontSize: 15,
-      fontWeight: FontWeight.bold,
+    final centre = Offset(size.width / 2, size.height / 2);
+    final rayon = size.width / 2;
+
+    final paint = Paint()..style = PaintingStyle.fill;
+    final textPainter = TextPainter(
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
     );
 
-    final shadowPaint = Paint()
-      ..color = Colors.white.withOpacity(0.08)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20);
-    canvas.drawCircle(center, rayon + 10, shadowPaint);
+    final angleParSection = 2 * pi / options.length;
 
     for (int i = 0; i < options.length; i++) {
-      final startAngle = i * angleParOption + angle;
-      final paint = Paint()..color = couleurs[i];
+      final startAngle = i * angleParSection;
+      paint.color = couleurs[i];
+
+      // Dessiner la section
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: rayon),
+        Rect.fromCircle(center: centre, radius: rayon),
         startAngle,
-        angleParOption,
+        angleParSection,
         true,
         paint,
       );
 
-      final textAngle = startAngle + angleParOption / 2;
-      final textRadius = rayon - 20;
-      final textOffset = Offset(
-        center.dx + textRadius * cos(textAngle),
-        center.dy + textRadius * sin(textAngle),
-      );
-
-      final textSpan = TextSpan(text: options[i], style: textStyle);
-      final tp = TextPainter(text: textSpan, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
-      tp.layout();
+      // Dessiner le texte
+      final textAngle = startAngle + angleParSection / 2;
       canvas.save();
-      canvas.translate(textOffset.dx, textOffset.dy);
+      canvas.translate(
+        centre.dx + rayon * 0.65 * cos(textAngle),
+        centre.dy + rayon * 0.65 * sin(textAngle),
+      );
       canvas.rotate(textAngle + pi / 2);
-      tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+
+      textPainter.text = TextSpan(
+        text: options[i],
+        style: const TextStyle(
+          fontSize: 16,
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+
       canvas.restore();
     }
-
-    final flechePaint = Paint()..color = Colors.black;
-    final flechePath = Path();
-    final flecheCenter = Offset(center.dx + rayon, center.dy);
-
-    canvas.save();
-    canvas.translate(flecheCenter.dx, flecheCenter.dy);
-    canvas.rotate(pi / 2);
-    flechePath.moveTo(-15, 0);
-    flechePath.lineTo(0, 20);
-    flechePath.lineTo(15, 0);
-    flechePath.close();
-    canvas.drawPath(flechePath, flechePaint);
-    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant RouePainter oldDelegate) =>
-      oldDelegate.angle != angle;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+
